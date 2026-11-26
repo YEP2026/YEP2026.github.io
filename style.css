@@ -1,0 +1,31 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee;
+       display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 16px; gap: 14px; }
+h1 { font-size: 1.3rem; margin: 4px 0; text-align: center; }
+main, section { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
+button, input, select { font: inherit; padding: 12px 14px; border-radius: 10px; border: 1px solid #333; }
+input, select { background: #1c1c1c; color: #eee; width: 100%; }
+button { background: #2563eb; color: #fff; border: none; cursor: pointer; }
+button:disabled { opacity: .6; }
+button.secondary { background: #333; }
+form { display: flex; flex-direction: column; gap: 10px; }
+[hidden] { display: none !important; }
+.muted { color: #999; font-size: .9rem; text-align: center; }
+
+.tabs { display: flex; gap: 6px; }
+.tabs button { flex: 1; background: #222; }
+.tabs button.active { background: #2563eb; }
+
+.results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.results li { background: #1c1c1c; border: 1px solid #333; border-radius: 10px; padding: 12px;
+              display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.results .who { display: flex; flex-direction: column; gap: 2px; }
+.results .who small { color: #999; }
+.results li.pick { cursor: pointer; }
+.badge { font-size: .8rem; padding: 2px 8px; border-radius: 999px; background: #333; }
+.badge.yes { background: #16a34a; }
+
+.card { background: #1c1c1c; border: 1px solid #333; border-radius: 14px; padding: 20px;
+        display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.card canvas { background: #fff; border-radius: 10px; max-width: 100%; height: auto; }
+.card .name { font-size: 1.4rem; font-weight: 700; }

@@ -1,0 +1,99 @@
+/* Student page styled after YEP's Instagram posts:
+   orange / lavender / mint, heavy condensed caps, thick ink outlines, sticker shadows. */
+:root {
+  --orange: #FE4816;
+  --lavender: #B4A2F8;
+  --mint: #ADD996;
+  --ink: #171718;
+  --paper: #FFFFFF;
+  --line: 3px solid var(--ink);
+  --pop: 4px 4px 0 var(--ink);
+  --display: 'Anton', 'Impact', sans-serif;
+  --body: 'Archivo', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; }
+[hidden] { display: none !important; }
+
+/* ---------- header band ---------- */
+header {
+  background: var(--orange); color: var(--paper);
+  padding: 28px 20px 40px; text-align: center; position: relative; overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), 55% calc(100% - 22px), 50% 100%, 45% calc(100% - 22px), 0 calc(100% - 22px));
+}
+.logo {
+  display: block; margin: 0 auto; width: 150px; aspect-ratio: 1520 / 464; background: var(--paper);
+  -webkit-mask: url(yep-logo.svg) center / contain no-repeat; mask: url(yep-logo.svg) center / contain no-repeat;
+}
+.tagline { margin: 6px 0 18px; font-size: .62rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(2.4rem, 11vw, 3.4rem); line-height: .95; text-transform: uppercase; }
+h1 .pill {
+  display: inline-block; margin-top: 8px; padding: 2px 16px 4px; border: var(--line); border-radius: 999px;
+  background: var(--ink); color: var(--paper); font-size: .62em;
+}
+.burst { position: absolute; width: 64px; height: 64px; }
+.burst.lav { right: -12px; top: 22px; color: var(--lavender); }
+.burst.ink { left: 14px; bottom: 34px; width: 34px; height: 34px; color: var(--ink); }
+.squiggle { position: absolute; left: -20px; top: 40px; width: 120px; color: var(--mint); }
+
+/* ---------- content ---------- */
+main { width: 100%; max-width: 460px; margin: 0 auto; padding: 18px 18px 40px; }
+main section { display: flex; flex-direction: column; gap: 16px; }
+#message:empty { display: none; }
+#search { display: flex; flex-direction: column; gap: 14px; }
+.hint { margin: 0; text-align: center; font-weight: 600; }
+.muted { color: #55555a; font-size: .92rem; text-align: center; margin: 0; }
+
+button, input, select { font: inherit; color: var(--ink); }
+input, select {
+  width: 100%; padding: 13px 14px; border: var(--line); border-radius: 14px; background: var(--paper);
+}
+input:focus, select:focus { outline: none; box-shadow: var(--pop); }
+button {
+  padding: 13px 16px; border: var(--line); border-radius: 999px; cursor: pointer;
+  background: var(--orange); color: var(--paper);
+  font-family: var(--display); font-size: 1.25rem; letter-spacing: .02em; text-transform: uppercase;
+  box-shadow: var(--pop); transition: transform .08s, box-shadow .08s;
+}
+button:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+button:disabled { opacity: .6; }
+button.secondary { background: var(--paper); color: var(--ink); }
+form { display: flex; flex-direction: column; gap: 10px; }
+
+/* search tabs (markup from search.js) */
+.tabs { display: flex; gap: 8px; }
+.tabs button {
+  flex: 1; padding: 9px 8px; font-size: 1rem; background: var(--paper); color: var(--ink); box-shadow: none;
+}
+.tabs button.active { background: var(--lavender); box-shadow: var(--pop); }
+
+/* results */
+.results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.results li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 14px; border: var(--line); border-radius: 16px; background: var(--paper); box-shadow: var(--pop); cursor: pointer;
+}
+.results li:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.results .who { display: flex; flex-direction: column; gap: 4px; }
+.results .who b { font-size: 1.05rem; }
+.results .who small { color: #55555a; }
+.results li > span { font-family: var(--display); font-size: 1.6rem; color: var(--orange); }
+
+/* confirm + QR cards */
+.card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+  padding: 24px 18px 20px; border: var(--line); border-radius: 22px; background: var(--paper); box-shadow: 6px 6px 0 var(--ink);
+}
+.card .ask { font-family: var(--display); font-size: 1.6rem; text-transform: uppercase; }
+.name-tag {
+  display: inline-block; padding: 6px 16px; border: var(--line); border-radius: 12px; background: var(--lavender);
+  font-weight: 800; font-size: 1.15rem;
+}
+.school-tag {
+  display: inline-block; margin-top: -8px; padding: 3px 12px; border: 2px solid var(--ink); border-radius: 8px;
+  background: var(--orange); color: var(--paper); font-size: .82rem; font-weight: 600;
+}
+.card canvas { width: 100%; max-width: 280px; height: auto; aspect-ratio: 1; border: var(--line); border-radius: 14px; }
+.card .actions { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.card .burst { right: -18px; top: -18px; width: 52px; height: 52px; color: var(--mint); }

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YEP — My QR code</title>
+  <link rel="icon" href="favicon.jpg">
+  <meta name="theme-color" content="#FE4816">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="student.css">
+</head>
+<body>
+  <!-- starburst + squiggle shapes, as in the posts -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="burst" viewBox="0 0 100 100"><path fill="currentColor" d="M50 0l9 27 25-14-11 27 27 10-27 10 11 27-25-14-9 27-9-27-25 14 11-27L0 50l27-10-11-27 25 14z"/></symbol>
+    <symbol id="squiggle" viewBox="0 0 120 30"><path fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" d="M4 20c10-14 18-14 26 0s18 14 26 0 18-14 26 0 18 14 26 0 10-8 8-8"/></symbol>
+  </svg>
+
+  <header>
+    <svg class="squiggle" aria-hidden="true"><use href="#squiggle"/></svg>
+    <svg class="burst lav" aria-hidden="true"><use href="#burst"/></svg>
+    <svg class="burst ink" aria-hidden="true"><use href="#burst"/></svg>
+    <span class="logo" role="img" aria-label="YEP"></span>
+    <p class="tagline">Young Entrepreneur Program</p>
+    <h1>Get your<br><span class="pill">QR code</span></h1>
+  </header>
+
+  <main>
+    <!-- 1. Find yourself -->
+    <section id="find">
+      <p class="hint">Search by your phone number. Can't find yourself? Ask an organizer.</p>
+      <div id="search"></div>
+      <p id="message" class="muted"></p>
+      <ul id="results" class="results"></ul>
+    </section>
+
+    <!-- 2. Confirm -->
+    <section id="confirm" hidden>
+      <div class="card">
+        <svg class="burst" aria-hidden="true"><use href="#burst"/></svg>
+        <div class="ask">Is this you?</div>
+        <div class="name-tag" id="confirm-name"></div>
+        <div class="school-tag" id="confirm-school"></div>
+        <div class="actions">
+          <button id="yes">Yes, that's me</button>
+          <button id="back" class="secondary">Back</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. QR code -->
+    <section id="qr" hidden>
+      <div class="card">
+        <svg class="burst" aria-hidden="true"><use href="#burst"/></svg>
+        <div class="name-tag" id="qr-name"></div>
+        <div class="school-tag" id="qr-school"></div>
+        <canvas id="qr-canvas"></canvas>
+        <p class="muted">Show this at the entrance. Take a screenshot so you have it without internet.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import QRCode from 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm';
+    import { call } from './api.js';
+    import { mountSearch, escapeHtml } from './search.js';
+
+    const STORAGE_KEY = 'yep_student';
+    const $ = id => document.getElementById(id);
+    const show = id => ['find', 'confirm', 'qr'].forEach(s => ($(s).hidden = s !== id));
+    let picked = null;
+
+    function showQr(student) {
+      $('qr-name').textContent = student.name;
+      $('qr-school').textContent = student.school;
+      const canvas = $('qr-canvas');
+      QRCode.toCanvas(canvas, student.token, { width: 560, margin: 2, color: { dark: '#171718', light: '#ffffff' } });
+      canvas.removeAttribute('style'); // the library sets an inline 560px height that beats the CSS and stretches it
+      show('qr');
+    }
+
+    function showResults(res) {
+      $('results').innerHTML = '';
+      if (res.status !== 'ok') {
+        $('message').textContent = res.message || 'Something went wrong, try again.';
+        return;
+      }
+      $('message').textContent = res.results.length
+        ? 'Tap your name:'
+        : 'No match found. Check what you typed, or ask an organizer.';
+      for (const student of res.results) {
+        const li = document.createElement('li');
+        li.className = 'pick';
+        li.innerHTML = `<div class="who"><b>${escapeHtml(student.name)}</b><small>${escapeHtml(student.school)}${student.room ? ' · ' + escapeHtml(student.room) : ''}</small></div><span>›</span>`;
+        li.onclick = () => {
+          picked = student;
+          $('confirm-name').textContent = student.name;
+          $('confirm-school').textContent = student.school;
+          show('confirm');
+        };
+        $('results').append(li);
+      }
+    }
+
+    $('back').onclick = () => show('find');
+    $('yes').onclick = () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(picked));
+      showQr(picked);
+    };
+
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved) {
+      showQr(saved);
+    } else {
+      mountSearch($('search'), {
+        byPhone: phone => call('searchPhone', { phone }),
+        onResults: showResults,
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YEP — Organizer</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    #video-wrap { width: 100%; }
+    video { width: 100%; border-radius: 12px; background: #000; }
+    #flash { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+             text-align: center; padding: 24px; gap: 8px; z-index: 10; }
+    #flash .big { font-size: 2rem; font-weight: 700; }
+    #flash .small { font-size: 1.2rem; }
+    #flash.ok { background: #16a34a; } #flash.already { background: #d97706; }
+    #flash.not_found, #flash.error { background: #dc2626; }
+    #flash.processing { background: #1d4ed8; }
+    #flash .spinner { width: 48px; height: 48px; border: 5px solid #fff6; border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .day { display: flex; gap: 8px; align-items: center; }
+    .day select { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>YEP — Organizer</h1>
+
+  <section id="login" hidden>
+    <form id="login-form">
+      <input id="pin" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Organizer PIN" required>
+      <button>Enter</button>
+    </form>
+    <p id="login-msg" class="muted"></p>
+  </section>
+
+  <main id="app" hidden>
+    <div class="day"><span>Day</span><select id="day"></select></div>
+
+    <button id="start">Start scanning</button>
+    <div id="video-wrap"><video id="video"></video></div>
+
+    <h1>Manual check-in</h1>
+    <div id="search"></div>
+    <p id="message" class="muted"></p>
+    <ul id="results" class="results"></ul>
+
+    <button id="logout" class="secondary">Log out</button>
+  </main>
+
+  <div id="flash"></div>
+  <p id="debug" class="muted" hidden style="color:#f87171"></p>
+
+  <script type="module">
+    import QrScanner from 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js';
+    import { call } from './api.js';
+    import { mountSearch, escapeHtml } from './search.js';
+
+    // Phones have no console: surface any unexpected error on the page instead of failing silently.
+    const showDebug = msg => { const el = document.getElementById('debug'); el.hidden = false; el.textContent = 'Error: ' + msg; };
+    window.addEventListener('error', e => showDebug(e.message));
+    window.addEventListener('unhandledrejection', e => showDebug(e.reason?.message || String(e.reason)));
+
+    const PIN_KEY = 'yep_admin_pin';
+    const REPEAT_COOLDOWN_MS = 3000; // ignore the same code re-scanned within this window
+    const $ = id => document.getElementById(id);
+    let pin = localStorage.getItem(PIN_KEY);
+
+    // Every admin call carries the PIN and the selected day; a wrong PIN logs out.
+    async function admin(action, params = {}) {
+      const res = await call(action, { pin, day: $('day').value, ...params });
+      if (res.status === 'unauthorized') logout('Wrong PIN.');
+      return res;
+    }
+
+    function logout(message = '') {
+      localStorage.removeItem(PIN_KEY);
+      pin = null;
+      $('app').hidden = true;
+      $('login').hidden = false;
+      $('login-msg').textContent = message;
+    }
+
+    async function login() {
+      const res = await call('days', { pin });
+      if (res.status === 'unauthorized') return logout('Wrong PIN.');
+      if (res.status !== 'ok') return logout(res.message || 'Could not reach the server.');
+      if (!res.days.length) return logout('No "Day N" columns found in the sheet.');
+      localStorage.setItem(PIN_KEY, pin);
+      $('day').innerHTML = res.days.map(d => `<option>${escapeHtml(d)}</option>`).join('');
+      $('day').value = res.days[res.days.length - 1];
+      $('login').hidden = true;
+      $('app').hidden = false;
+    }
+
+    $('login-form').onsubmit = e => {
+      e.preventDefault();
+      pin = $('pin').value;
+      $('login-msg').textContent = 'Checking…';
+      login();
+    };
+    $('logout').onclick = () => logout();
+    $('day').onchange = () => ($('results').innerHTML = '');
+
+    // ---------- scanning ----------
+
+    const FLASH = {
+      ok: 'Present ✅',
+      already: 'Already scanned ⚠️',
+      not_found: 'Unknown QR code ❌',
+      error: 'Error ❌',
+    };
+    let lastToken = null, lastTime = 0, busy = false, flashTimer;
+
+    // Shown as soon as a code is read, while the sheet is being updated.
+    function flashProcessing() {
+      clearTimeout(flashTimer);
+      const el = $('flash');
+      el.className = 'processing';
+      el.innerHTML = '<div class="spinner"></div><div class="big">Scanned ✓</div><div class="small">Saving…</div>';
+      el.style.display = 'flex';
+    }
+
+    function flash(res) {
+      const status = FLASH[res.status] ? res.status : 'error';
+      const el = $('flash');
+      clearTimeout(flashTimer);
+      el.className = status;
+      el.innerHTML = `<div class="big">${FLASH[status]}</div>` + (res.name
+        ? `<div class="big">${escapeHtml(res.name)}</div><div class="small">${escapeHtml(res.school)} · ${escapeHtml(res.room)}</div>`
+          + (res.warning ? `<div class="small">⚠️ Room tab: ${escapeHtml(res.warning)}</div>` : '')
+        : `<div class="small">${escapeHtml(res.message || '')}</div>`);
+      el.style.display = 'flex';
+      flashTimer = setTimeout(() => (el.style.display = 'none'), 2000);
+    }
+
+    async function onScan(token) {
+      const now = Date.now();
+      if (busy || (token === lastToken && now - lastTime < REPEAT_COOLDOWN_MS)) return;
+      lastToken = token; lastTime = now; busy = true;
+      flashProcessing();
+      try {
+        const res = await admin('scan', { token });
+        if (res.status !== 'unauthorized') flash(res);
+        else $('flash').style.display = 'none';
+        if (res.status === 'error') lastToken = null; // allow an immediate retry
+      } finally {
+        busy = false;
+      }
+    }
+
+    const scanner = new QrScanner($('video'), r => onScan(r.data), {
+      preferredCamera: 'environment',
+      maxScansPerSecond: 5,
+      highlightScanRegion: true,
+      highlightCodeOutline: true,
+    });
+
+    $('start').onclick = async e => {
+      try {
+        await scanner.start();
+        e.target.remove();
+      } catch (err) {
+        alert('Could not start camera: ' + err);
+      }
+    };
+
+    // ---------- manual check-in ----------
+
+    function renderRow(li, s) {
+      li.innerHTML = `
+        <div class="who"><b>${escapeHtml(s.name)}</b><small>${escapeHtml(s.school)} · ${escapeHtml(s.room)} · ${escapeHtml(s.id)}</small></div>
+        <span class="badge ${s.present ? 'yes' : ''}">${s.present ? 'Present' : 'Absent'}</span>
+        <button class="${s.present ? 'secondary' : ''}">${s.present ? 'Undo' : 'Mark present'}</button>`;
+      const button = li.querySelector('button');
+      button.onclick = async () => {
+        button.disabled = true;
+        const res = await admin('mark', { id: s.id, value: !s.present });
+        if (res.status === 'ok') {
+          renderRow(li, res);
+          if (res.warning) alert('Saved, but the room tab was not updated: ' + res.warning);
+        }
+        else {
+          button.disabled = false;
+          if (res.status !== 'unauthorized') alert(res.message || 'Could not update.');
+        }
+      };
+    }
+
+    function showResults(res) {
+      $('results').innerHTML = '';
+      if (res.status !== 'ok') {
+        if (res.status !== 'unauthorized') $('message').textContent = res.message || 'Something went wrong.';
+        return;
+      }
+      $('message').textContent = res.results.length ? `${res.results.length} result(s) for ${$('day').value}` : 'No match found.';
+      for (const s of res.results) {
+        const li = document.createElement('li');
+        renderRow(li, s);
+        $('results').append(li);
+      }
+    }
+
+    mountSearch($('search'), {
+      loadSchools: async () => (await call('schools')).schools || [],
+      byPhone: phone => admin('search', { phone }),
+      byName: (school, query) => admin('search', { school, query }),
+      onResults: showResults,
+    });
+
+    if (pin) login();
+    else logout();
+  </script>
+</body>
+</html>
